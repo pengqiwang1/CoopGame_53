@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="Encoding">
+    <file url="file://$PROJECT_DIR$/Source/CoopGame_427/Private/AttackRobot.cpp" charset="GBK" />
+    <file url="file://$PROJECT_DIR$/Source/CoopGame_427/Private/Bullet.cpp" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/Source/CoopGame_427/Private/MissileBaseServer.cpp" charset="GBK" />
+    <file url="file://$PROJECT_DIR$/Source/CoopGame_427/Private/SCharacter.cpp" charset="GBK" />
+    <file url="file://$PROJECT_DIR$/Source/CoopGame_427/Private/VehicleBase.cpp" charset="GBK" />
+    <file url="file://$PROJECT_DIR$/Source/CoopGame_427/Public/SCharacter.h" charset="GBK" />
+    <file url="file://$PROJECT_DIR$/Source/CoopGame_427/Public/VehicleBase.h" charset="GBK" />
+    <file url="PROJECT" charset="GBK" />
+  </component>
+</project>
