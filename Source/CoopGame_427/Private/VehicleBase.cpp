@@ -53,11 +53,10 @@ AVehicleBase::AVehicleBase()
 // Called when the game starts or when spawned
 void AVehicleBase::BeginPlay()
 {
+	CreateUI();
 	Super::BeginPlay();
-	if(Widget)
-	{
-		ClientUpdateHealthUI();
-	}
+	
+	
 	
 	OnTakeRadialDamage.AddDynamic(this, &AVehicleBase::RadialDamage);
 	if (APlayerController* PlayerController = Cast<APlayerController>(Controller))
@@ -67,19 +66,7 @@ void AVehicleBase::BeginPlay()
 			Subsystem->AddMappingContext(InputMapping, 1);
 		}
 	}
-	/*if (HasAuthority())  // 只在服务器上执行
-	{
-		if (WidgetBPClass)
-		{
-			Widget = CreateWidget<UUserWidget>(GetWorld(), WidgetBPClass);
-			if (Widget)
-			{
-				Widget->AddToViewport();
-			}
-		}
-		// 在拥有该 Actor 的客户端生成 Widget
-		CreateClientUI();
-	}*/
+	
 }
 
 // Called every frame
@@ -117,6 +104,21 @@ void AVehicleBase::SetupPlayerInputComponent(UInputComponent* PlayerInputCompone
 	}
 }
 
+void AVehicleBase::CreateUI_Implementation()
+{
+	if (IsLocallyControlled())  // 只在服务器上执行
+	{
+		if (WidgetBPClass)
+		{
+			Widget = CreateWidget<UUserWidget>(GetWorld(), WidgetBPClass);
+			if (Widget)
+			{
+				Widget->AddToViewport();
+			}
+		}
+	}
+}
+
 void AVehicleBase::CreateClientUI_Implementation()
 {
 	if (WidgetBPClass)
@@ -138,7 +140,14 @@ void AVehicleBase::DestroyVehicle_Implementation()
 {
 	//添加生成损毁车辆的逻辑
 	FTransform SpawnTransform = this->GetActorTransform();
+	ClientUpdateHealthUI();
+	if (Widget)
+	{
+		Widget->RemoveFromParent();  // 从视口移除
+		Widget = nullptr;
+	}
 	this->Destroy();
+	
 	UWorld* World = GetWorld();
 	FActorSpawnParameters SpawnInfo;
 	SpawnInfo.Owner = nullptr;

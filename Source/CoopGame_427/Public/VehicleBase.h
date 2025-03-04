@@ -77,6 +77,9 @@ public:
 
 	UFUNCTION(Client, Reliable)
 	void CreateClientUI();
+
+	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "UI")
+	void CreateUI();
 	
 	UFUNCTION(Client, Reliable)
 	void ClientUpdateHealthUI();
