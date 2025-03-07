@@ -183,10 +183,9 @@ void AAircraftBase::SetupPlayerInputComponent(UInputComponent* PlayerInputCompon
 void AAircraftBase::OnBoxEndOverlap_Implementation(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor,
 	UPrimitiveComponent* OtherComp, int32 OtherBodyIndex)
 {
-	UKismetSystemLibrary::PrintString(this, FString::Printf(TEXT("BoxEndOverlap:%s"),*OtherActor->GetName()));
 	ASCharacter* Player = Cast<ASCharacter>(OtherActor);
 	AMultiFPSPlayerController* VehicleController = Cast<AMultiFPSPlayerController>(Player->GetController());
-	if (Player != nullptr && Controller != nullptr)
+	if (Player != nullptr && VehicleController != nullptr)
 	{
 		Player->IsNearVehicle=false;
 		if (VehicleController->VehicleList.Contains(this) && !Activate)
@@ -205,7 +204,6 @@ void AAircraftBase::OnBoxBeginOverlap_Implementation(UPrimitiveComponent* Overla
 {
 	ASCharacter* Player = Cast<ASCharacter>(OtherActor);
 	AMultiFPSPlayerController* VehicleController = Cast<AMultiFPSPlayerController>(Player->GetController());
-	UKismetSystemLibrary::PrintString(this, FString::Printf(TEXT("BoxBeginOverlap")));
 	if (Player != nullptr)
 	{
 		Player->IsNearVehicle=true;

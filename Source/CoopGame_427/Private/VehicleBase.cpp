@@ -38,6 +38,15 @@ AVehicleBase::AVehicleBase()
 	CameraComponent = CreateDefaultSubobject<UCameraComponent>(TEXT("CameraComponent"));
 	CameraComponent->SetupAttachment(SpringArmComponent);
 	
+	VehicleBoxComponent = CreateDefaultSubobject<UBoxComponent>(TEXT("VehicleBox"));
+	VehicleBoxComponent->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
+	VehicleBoxComponent->BodyInstance.SetCollisionProfileName(TEXT("VehicleBox"));
+	VehicleBoxComponent->SetGenerateOverlapEvents(true);
+	//VehicleBoxComponent->BodyInstance.bUseCCD=true;
+	VehicleBoxComponent->SetupAttachment(VehicleMesh);
+	VehicleBoxComponent->OnComponentBeginOverlap.AddDynamic(this, &AVehicleBase::OnBoxBeginOverlap);
+	VehicleBoxComponent->OnComponentEndOverlap.AddDynamic(this, &AVehicleBase::OnBoxEndOverlap);
+	VehicleBoxComponent->ComponentTags.Add(FName(TEXT("Vechicle")));
 	// Create the vehicle movement component
 	VehicleMovement = CreateDefaultSubobject<UChaosWheeledVehicleMovementComponent>(TEXT("VehicleMovement"));
 	//VehicleMovement = CreateDefaultSubobject<UChaosWheeledVehicleMovementComponent>(TEXT("VehicleMovement"));
@@ -89,7 +98,7 @@ void AVehicleBase::SetupPlayerInputComponent(UInputComponent* PlayerInputCompone
 		//摄像机Yaw事件的绑定
 		EnhancedInputComponent->BindAction(CameraLeftRightAction,ETriggerEvent::Triggered,this,&AVehicleBase::CameraLeftRightTriggered);
 		//SpringArm事件的绑定
-		EnhancedInputComponent->BindAction(CameraSpringArmAction,ETriggerEvent::Triggered,this,&AVehicleBase::CameraSpringArmTriggered);
+		EnhancedInputComponent->BindAction(GetOfVehicleAction,ETriggerEvent::Triggered,this,&AVehicleBase::GetOfVehicleTriggered);
 		//转向事件的绑定
 		switch (VehicleType)
 		{
@@ -99,6 +108,8 @@ void AVehicleBase::SetupPlayerInputComponent(UInputComponent* PlayerInputCompone
 		default:
 			break;
 		}
+		//下车事件的绑定
+		EnhancedInputComponent->BindAction(CameraSpringArmAction,ETriggerEvent::Triggered,this,&AVehicleBase::CameraSpringArmTriggered);
 		
 		
 	}
@@ -114,6 +125,7 @@ void AVehicleBase::CreateUI_Implementation()
 			if (Widget)
 			{
 				Widget->AddToViewport();
+				Widget->SetVisibility(ESlateVisibility::Hidden);
 			}
 		}
 	}
@@ -287,6 +299,84 @@ void AVehicleBase::CameraSpringArmTriggered(const FInputActionValue& Value)
 	const float SpringArm = Value.Get<float>();
 	//UKismetSystemLibrary::PrintString(this, FString::Printf(TEXT("springarm:%f"),SpringArm));
 	SpringArmComponent->TargetArmLength += SpringArm*50;
+}
+
+void AVehicleBase::GetOfVehicleTriggered(const FInputActionValue& Value)
+{
+	AMultiFPSPlayerController* VehicleController = Cast<AMultiFPSPlayerController>(GetController());
+	if (VehicleController!=nullptr)
+	{
+		VehicleController->DownVehicles();
+	}
+}
+
+void AVehicleBase::ActivateVehicle()
+{
+	CameraComponent->SetActive(true);
+	APlayerController* PlayerController = Cast<APlayerController>(GetController());
+	if (PlayerController)
+	{
+		if (Widget)
+		{
+			Widget->SetVisibility(ESlateVisibility::Visible);
+		}
+		EnableInput(PlayerController);  // 启用输入，确保控制权生效
+		PlayerController->SetInputMode(FInputModeGameOnly());
+		PlayerController->bShowMouseCursor = false;
+		if (UEnhancedInputLocalPlayerSubsystem* Subsystem = ULocalPlayer::GetSubsystem<UEnhancedInputLocalPlayerSubsystem>(PlayerController->GetLocalPlayer()))
+		{
+			Subsystem->ClearAllMappings(); 
+			Subsystem->AddMappingContext(InputMapping,0);
+		}
+	}
+}
+
+void AVehicleBase::UnActivateVehicle()
+{
+	CameraComponent->SetActive(false);
+	APlayerController* PlayerController = Cast<APlayerController>(GetController());
+	if (PlayerController)
+	{
+		if (Widget)
+		{
+			Widget->SetVisibility(ESlateVisibility::Hidden);
+		}
+		Widget->SetVisibility(ESlateVisibility::Hidden);
+		PlayerController->SetInputMode(FInputModeGameOnly());
+		PlayerController->bShowMouseCursor = false;
+	}
+}
+
+void AVehicleBase::OnBoxEndOverlap_Implementation(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor,
+                                                  UPrimitiveComponent* OtherComp, int32 OtherBodyIndex)
+{
+	
+	ASCharacter* Player = Cast<ASCharacter>(OtherActor);
+	AMultiFPSPlayerController* PlayerController = Cast<AMultiFPSPlayerController>(Player->GetController());
+	if (Player != nullptr && PlayerController != nullptr)
+	{
+		Player->IsNearVehicle=false;
+		if (PlayerController->VehicleList.Contains(this) && !Activate)
+		{
+			PlayerController->VehicleList.Remove(this);
+		}
+	}
+}
+
+void AVehicleBase::OnBoxBeginOverlap_Implementation(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor,
+                                                    UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult)
+{
+	ASCharacter* Player = Cast<ASCharacter>(OtherActor);
+	AMultiFPSPlayerController* VehicleController = Cast<AMultiFPSPlayerController>(Player->GetController());
+	if (Player != nullptr)
+	{
+		Player->IsNearVehicle=true;
+		if (!VehicleController->VehicleList.Contains(this))
+		{
+			VehicleController->VehicleList.Add(this);
+		}
+		
+	}
 }
 
 void AVehicleBase:: GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const

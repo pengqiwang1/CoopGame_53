@@ -32,6 +32,9 @@ class COOPGAME_427_API AVehicleBase : public APawn
 public:
 	// Sets default values for this pawn's properties
 	AVehicleBase();
+public:
+	UPROPERTY(BlueprintReadWrite)
+	bool Activate;
 
 protected:
 	// Called when the game starts or when spawned
@@ -53,6 +56,9 @@ protected:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
 	UChaosWheeledVehicleMovementComponent* VehicleMovement;
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Aircraft", meta = (AllowPrivateAccess = "true"))
+	class UBoxComponent* VehicleBoxComponent;
+
 	UPROPERTY(EditAnywhere)
 	EVehucleType VehicleType;
 
@@ -67,6 +73,8 @@ protected:
 	
 	UPROPERTY(BlueprintReadWrite, Category = "UI")
 	UUserWidget* Widget = nullptr;
+	
+	
 
 public:	
 	// Called every frame
@@ -127,6 +135,9 @@ protected:
 	
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Action", meta = (AllowPrivateAccess = "true"))
 	TObjectPtr<UInputAction> CameraSpringArmAction = nullptr;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Action", meta = (AllowPrivateAccess = "true"))
+	TObjectPtr<UInputAction> GetOfVehicleAction = nullptr;
 	
 	UPROPERTY(EditAnywhere,BlueprintReadOnly)
 	int CurrentGear;
@@ -171,7 +182,23 @@ protected:
 
 	UFUNCTION()
 	void  CameraSpringArmTriggered(const FInputActionValue& Value);
-#pragma endregion 
 
+	UFUNCTION()
+	void  GetOfVehicleTriggered(const FInputActionValue& Value);
+#pragma endregion
+public:
+	void ActivateVehicle();
+
+	void UnActivateVehicle();
+	
+	UFUNCTION(Server, Reliable)
+	void OnBoxBeginOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, 
+						   UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, 
+						   bool bFromSweep, const FHitResult& SweepResult);
+
+	// Overlap end function
+	UFUNCTION(Server, Reliable)
+	void OnBoxEndOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, 
+						 UPrimitiveComponent* OtherComp, int32 OtherBodyIndex);
 	
 };

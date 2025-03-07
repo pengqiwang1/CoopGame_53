@@ -5,6 +5,7 @@
 #include "Net/UnrealNetwork.h"
 #include "Ghost.h"
 #include "SCharacter.h"
+#include "VehicleBase.h"
 #include "Kismet/KismetMathLibrary.h"
 #include "Kismet/KismetSystemLibrary.h"
 
@@ -45,10 +46,16 @@ void AMultiFPSPlayerController::DownVehicles_Implementation()
 		{
 			ASCharacter* SCharacter = Cast<ASCharacter>(ControlPlayer);
 			AAircraftBase* Aircraft = Cast<AAircraftBase>(CurrentVehicle);
+			AVehicleBase* Vehicle = Cast<AVehicleBase>(CurrentVehicle);
 			if (Aircraft)
 			{
 				Aircraft->Activate=false;
 				Aircraft->UnActivateAircraft();
+			}
+			if (Vehicle)
+			{
+				Vehicle->Activate=false;
+				Vehicle->UnActivateVehicle();
 			}
 			if (SCharacter)
 			{
@@ -57,7 +64,22 @@ void AMultiFPSPlayerController::DownVehicles_Implementation()
 				CreatePlayerUI(SCharacter->PlayerWidgetBPClass);
 				SCharacter->DetachFromActor(FDetachmentTransformRules::KeepWorldTransform);
 				FTransform VehicleTransform = CurrentVehicle->GetActorTransform();
-				FVector DownLocation = UKismetMathLibrary::TransformLocation(VehicleTransform,FVector(717.000000,260.000000,300));//317.000000,260.000000,300
+				//TArray<UBoxComponent*> FoundVehicleBoxComponents;
+				//FoundVehicleBoxComponents = CurrentVehicle->GetComponentsByTag(UBoxComponent::StaticClass(), FName(TEXT("Vechicle")));
+				FVector DownLocation = FVector(0,0,0);
+				UBoxComponent* BoxComponent = CurrentVehicle->FindComponentByClass<UBoxComponent>();
+				if (BoxComponent)
+				{
+					// ªÒ»°BoxComponentµƒ≥ﬂ¥Á£®∞Î≥ﬂ¥Á£©
+					FVector BoxExtent = BoxComponent->GetScaledBoxExtent();
+					DownLocation = UKismetMathLibrary::TransformLocation(VehicleTransform,
+					FVector(0,BoxExtent[1]-10,300));//317.000000,260.000000,300
+				}
+				else
+				{
+					DownLocation = UKismetMathLibrary::TransformLocation(VehicleTransform,
+						FVector(317.000000,260.000000,300));
+				}
 				SCharacter->SetActorLocation(DownLocation);
 				SCharacter->SetActorRotation(VehicleTransform.Rotator());
 				SCharacter->SetActivate();
@@ -84,6 +106,7 @@ void AMultiFPSPlayerController::UpVehicles_Implementation(APawn* Vehicle)
 	if (CurrentVehicle == nullptr)
 	{
 		//¥Ó≥À‘ÿæﬂ
+		
 		if(Vehicle)
 		{
 			
@@ -91,17 +114,31 @@ void AMultiFPSPlayerController::UpVehicles_Implementation(APawn* Vehicle)
 			ControlPlayer=VehiclePlayer;
 			if (Player)
 			{
-				CurrentVehicle = Vehicle;
-				AAircraftBase* Aircraft = Cast<AAircraftBase>(CurrentVehicle);
-				Aircraft->Activate=true;
-				VehiclePlayer->SetUnActivate();
-				UnPossess();
-				Possess(CurrentVehicle);
-				Aircraft->ActivateAircraft();
+				AAircraftBase* Aircraft = Cast<AAircraftBase>(Vehicle);
+				AVehicleBase* TargetVehicle = Cast<AVehicleBase>(Vehicle);
 				if (Aircraft)
 				{
+					CurrentVehicle = Aircraft;
+					Aircraft->Activate=true;
+					VehiclePlayer->SetUnActivate();
+					UnPossess();
+					Possess(CurrentVehicle);
+					Aircraft->ActivateAircraft();
+				}
+				if (TargetVehicle)
+				{
+					UKismetSystemLibrary::PrintString(this, FString::Printf(TEXT("TargetVehicle")));
+					CurrentVehicle = TargetVehicle;
+					TargetVehicle->Activate=true;
+					VehiclePlayer->SetUnActivate();
+					UnPossess();
+					Possess(CurrentVehicle);
+					TargetVehicle->ActivateVehicle();
+				}
+				if (CurrentVehicle)
+				{
 					DestoryPlayerUI();
-					USkeletalMeshComponent* SkeletalMeshComponent = Aircraft->FindComponentByClass<USkeletalMeshComponent>();
+					USkeletalMeshComponent* SkeletalMeshComponent = Vehicle->FindComponentByClass<USkeletalMeshComponent>();
 					if (SkeletalMeshComponent)
 					{
 						VehiclePlayer->K2_AttachToComponent(SkeletalMeshComponent, TEXT("VehicleSocket"), EAttachmentRule::SnapToTarget,
@@ -109,7 +146,6 @@ void AMultiFPSPlayerController::UpVehicles_Implementation(APawn* Vehicle)
 						EAttachmentRule::SnapToTarget,
 						true);
 					}
-					
 				}
 			}
 			else
