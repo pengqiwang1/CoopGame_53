@@ -13,6 +13,8 @@
 #include "Components/BoxComponent.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "GameFramework/SpringArmComponent.h"
+#include "Chaos/ChaosNotifyHandlerInterface.h"  
+#include "PhysicsEngine/BodyInstance.h" // FOnContactModifyCallback
 #include "VehicleBase.generated.h"
 
 UENUM()
@@ -74,7 +76,11 @@ protected:
 	UPROPERTY(BlueprintReadWrite, Category = "UI")
 	UUserWidget* Widget = nullptr;
 	
-	
+	UPROPERTY(EditAnywhere, BlueprintReadOnly)
+	float PrimaryWeaponDamage;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly)
+	float SecondaryWeaponDamage;
 
 public:	
 	// Called every frame
@@ -200,5 +206,6 @@ public:
 	UFUNCTION(Server, Reliable)
 	void OnBoxEndOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, 
 						 UPrimitiveComponent* OtherComp, int32 OtherBodyIndex);
-	
+
+
 };

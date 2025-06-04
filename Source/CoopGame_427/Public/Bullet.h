@@ -49,32 +49,38 @@ public:
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Bullet)
 	class UProjectileMovementComponent* ProjectileMovementComponent;
+	
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Bullet)
+	class UParticleSystemComponent* ParticleComponent;
 
-	UPROPERTY(EditAnywhere)
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Bullet)
+	class URadialForceComponent* RadialForceComp;
+
+	UPROPERTY(EditAnywhere, Category = Bullet)
 	float Speed;
 
-	UPROPERTY(EditAnywhere,BlueprintReadOnly)
+	UPROPERTY(EditAnywhere,BlueprintReadOnly,Category = Bullet)
 	UParticleSystem* ExplodeFlash;
 
-	UPROPERTY(EditAnywhere,BlueprintReadOnly)
+	UPROPERTY(EditAnywhere,BlueprintReadOnly,Category = Bullet)
 	UNiagaraSystem* ExplodeFX;
 
-	UPROPERTY(EditAnywhere,BlueprintReadOnly)
+	UPROPERTY(EditAnywhere,BlueprintReadOnly,Category = Bullet)
 	float Damage;
 
-	UPROPERTY(EditAnywhere,BlueprintReadOnly)
+	UPROPERTY(EditAnywhere,BlueprintReadOnly, Category = Bullet)
 	float DamageRadius;
 
-	UPROPERTY(EditAnywhere,BlueprintReadOnly)
+	UPROPERTY(EditAnywhere,BlueprintReadOnly, Category = Bullet)
 	EBulletType BulletType;
 
 public:
-	UFUNCTION(Server, Reliable, WithValidation)
+	UFUNCTION(Server, Reliable, WithValidation,BlueprintCallable)
 	void LaunchProjectile();
 	void LaunchProjectile_Implementation();
 	bool LaunchProjectile_Validate();
 
-	UFUNCTION(Server, Reliable, WithValidation)
+	UFUNCTION(Server, Reliable, WithValidation,BlueprintCallable)
 	void FireInDirection(const FVector& ShootDirection);
 	void FireInDirection_Implementation(const FVector& ShootDirection);
 	bool FireInDirection_Validate(const FVector& ShootDirection);

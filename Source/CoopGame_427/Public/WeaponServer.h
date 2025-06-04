@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
+#include "Bullet.h"
 #include "WeaponServer.generated.h"
 
 UENUM()
@@ -55,6 +56,9 @@ public:
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	TSubclassOf<class AWeaponBaseClient> ClientWeaponBaseBPClass;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	TSubclassOf<ABullet> BulletBP;
 
 	UFUNCTION()
 	void OnOtherBeginOverlap_(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex,

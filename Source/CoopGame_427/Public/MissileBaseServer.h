@@ -12,6 +12,8 @@ class USkeletalMeshComponent;
 class USpringArmComponent;
 class UCameraComponent;
 class UNiagaraComponent;
+class USceneCaptureComponent2D;
+class URadialForceComponent;
 
 
 UCLASS()
@@ -42,14 +44,25 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Missile")
 	class UCapsuleComponent* CapsuleCollisionComponent;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Missile", meta = (AllowPrivateAccess = "true"))
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category =  "Missile")
+	class UProjectileMovementComponent* ProjectileMovementComponent;
+
+
+	/*UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Missile", meta = (AllowPrivateAccess = "true"))
 	TObjectPtr<USpringArmComponent> SpringArmComponent;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Missile", meta = (AllowPrivateAccess = "true"))
-	TObjectPtr<UCameraComponent> CameraComponent;
+	TObjectPtr<UCameraComponent> CameraComponent;*/
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Missile", meta = (AllowPrivateAccess = "true"))
+	TObjectPtr<USceneCaptureComponent2D> SceneCaptureComponent2D;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Missile", meta = (AllowPrivateAccess = "true"))
 	TObjectPtr<UNiagaraComponent> FX;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Missile", meta = (AllowPrivateAccess = "true"))
+	TObjectPtr<URadialForceComponent> RadialForceComp;
+
 #pragma endregion
 #pragma region Attack
 	UPROPERTY(Replicated, BlueprintReadWrite, meta = (AllowPrivateAccess = "true"))
@@ -60,6 +73,9 @@ public:
 	
 	UPROPERTY(EditAnywhere,BlueprintReadOnly)
 	float Speed;
+
+	UPROPERTY(EditAnywhere,BlueprintReadOnly)
+	float RotationSpeed;
 
 	UPROPERTY(EditAnywhere)
 	float Range;
@@ -72,14 +88,19 @@ public:
 	
 	UPROPERTY(EditAnywhere, Category = "Particles")
 	UParticleSystem* ExplodeParticleEffect;
-	
+
+	UPROPERTY(EditAnywhere)
+	FRotator MaxSteeringAngle;
+
+	UPROPERTY(EditAnywhere,BlueprintReadOnly)
+	float AccelerationTime;
 	
 
 #pragma endregion Attack	
 public:
 	UFUNCTION(Server,BlueprintCallable, Reliable)
-	void LockTarget();
-	bool LockTarget_Validate();
+	void LockTarget(float DeltaTime);
+	bool LockTarget_Validate(float DeltaTime);
 	
 	UFUNCTION(Server, Reliable)
 	void OnHit(UPrimitiveComponent* HitComp, AActor* OtherActor, UPrimitiveComponent* OtherComp, FVector NormalImpulse, const FHitResult& Hit);
@@ -91,7 +112,9 @@ public:
 
 	UFUNCTION()
 	void DestroyMissile();
-
+	
+	UFUNCTION(BlueprintNativeEvent)
+	void OnMissileDestroyed(AActor* DestroyedActor);
 
 
 };

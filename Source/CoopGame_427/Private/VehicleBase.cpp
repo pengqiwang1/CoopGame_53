@@ -8,6 +8,7 @@
 #include "Camera/CameraComponent.h"
 #include "GameFramework/SpringArmComponent.h"
 #include "Kismet/KismetSystemLibrary.h"
+#include "Kismet/GameplayStatics.h"
 #include "Misc/MapErrors.h"
 #include "Net/UnrealNetwork.h"
 
@@ -182,6 +183,10 @@ void AVehicleBase::RadialDamage_Implementation(AActor* DamagedActor, float Damag
 	{
 		OnRep_CurrentLife();
 	}
+	if(Health<=0)
+	{
+		DestroyVehicle();
+	}
 	/*if (Health<=0)
 	{
 		ServerDeath();
@@ -240,7 +245,7 @@ void AVehicleBase::SetThrottle(const FInputActionValue& Value)
 
 void AVehicleBase::SetStear_Implementation(const FInputActionValue& Value)
 {
-	const float Stear = Value.Get<float>();
+	const float Stear = Value.Get<float>()*2;
 	if(VehicleMovement)
 	{
 		switch (VehicleType)
@@ -350,15 +355,20 @@ void AVehicleBase::UnActivateVehicle()
 void AVehicleBase::OnBoxEndOverlap_Implementation(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor,
                                                   UPrimitiveComponent* OtherComp, int32 OtherBodyIndex)
 {
-	
-	ASCharacter* Player = Cast<ASCharacter>(OtherActor);
-	AMultiFPSPlayerController* PlayerController = Cast<AMultiFPSPlayerController>(Player->GetController());
-	if (Player != nullptr && PlayerController != nullptr)
+	if (OtherActor!=nullptr)
 	{
-		Player->IsNearVehicle=false;
-		if (PlayerController->VehicleList.Contains(this) && !Activate)
+		ASCharacter* Player = Cast<ASCharacter>(OtherActor);
+		if (Player != nullptr )
 		{
-			PlayerController->VehicleList.Remove(this);
+			AMultiFPSPlayerController* PlayerController = Cast<AMultiFPSPlayerController>(Player->GetController());
+			if ( PlayerController != nullptr)
+			{
+				Player->IsNearVehicle=false;
+				if (PlayerController->VehicleList.Contains(this) && !Activate)
+				{
+					PlayerController->VehicleList.Remove(this);
+				}
+			}
 		}
 	}
 }
@@ -366,16 +376,29 @@ void AVehicleBase::OnBoxEndOverlap_Implementation(UPrimitiveComponent* Overlappe
 void AVehicleBase::OnBoxBeginOverlap_Implementation(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor,
                                                     UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult)
 {
-	ASCharacter* Player = Cast<ASCharacter>(OtherActor);
-	AMultiFPSPlayerController* VehicleController = Cast<AMultiFPSPlayerController>(Player->GetController());
-	if (Player != nullptr)
+	if(OtherActor!=nullptr)
 	{
-		Player->IsNearVehicle=true;
-		if (!VehicleController->VehicleList.Contains(this))
-		{
-			VehicleController->VehicleList.Add(this);
-		}
+		ASCharacter* Player = Cast<ASCharacter>(OtherActor);
 		
+		if (Player != nullptr)
+		{
+			if(VehicleMovement->GetForwardSpeed()>0)
+			{
+				UGameplayStatics::ApplyPointDamage(SweepResult.GetActor(), 100, this->GetActorForwardVector(), SweepResult,
+			GetController(), GetOwner(), UDamageType::StaticClass());
+               
+			}
+				
+			AMultiFPSPlayerController* VehicleController = Cast<AMultiFPSPlayerController>(Player->GetController());
+			Player->IsNearVehicle=true;
+			if(VehicleController!=nullptr)
+			{
+				if (!VehicleController->VehicleList.Contains(this))
+				{
+					VehicleController->VehicleList.Add(this);
+				}
+			}
+		}
 	}
 }
 

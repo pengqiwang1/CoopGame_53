@@ -124,6 +124,12 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Aircraft", meta = (AllowPrivateAccess = "true"))
 	TObjectPtr<UInputAction> GetOfAircraftAction = nullptr;
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Aircraft", meta = (AllowPrivateAccess = "true"))
+	TObjectPtr<UInputAction> SwitchViewModeAction = nullptr;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Aircraft", meta = (AllowPrivateAccess = "true"))
+	TObjectPtr<UInputAction> MouseClickAction = nullptr;
+
 	UFUNCTION(BlueprintNativeEvent,BlueprintCallable)
 	void ThrottleUp(const FInputActionValue& Value);
 
@@ -168,7 +174,12 @@ public:
 
 	UFUNCTION(BlueprintNativeEvent, BlueprintCallable)
 	void  GetOfAircraftTriggered(const FInputActionValue& Value);
-	
+
+	UFUNCTION(BlueprintNativeEvent, BlueprintCallable)
+	void  MouseClickTriggered(const FInputActionValue& Value);
+
+	UFUNCTION(BlueprintNativeEvent, BlueprintCallable)
+	void  SwitchViewModeTriggered(const FInputActionValue& Value);
 #pragma endregion
 public:	
 	// Called every frame

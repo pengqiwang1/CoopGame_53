@@ -96,10 +96,15 @@ public:
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Pawn|Weapon")
 	float CollisionAggressivity;
+	
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Pawn|Weapon")
+	float CollisionAggressivityRadius;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Pawn|Weapon")
 	float Health;
-
+	
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Pawn|Weapon")
+	UClass* BulletBP;
 	
 
 public:

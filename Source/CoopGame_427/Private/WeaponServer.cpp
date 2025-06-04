@@ -9,6 +9,7 @@
 #include "Net/UnrealNetwork.h"
 #include "Kismet/GameplayStatics.h"
 
+
 // Sets default values
 AWeaponServer::AWeaponServer()
 {
@@ -53,6 +54,7 @@ void AWeaponServer::OnOtherBeginOverlap_(UPrimitiveComponent* OverlappedComponen
 	//	case EWeaponGrade::Secondary:
 	//		FPSCharacter->EquipSecondary(this);
 	//		break;
+	//	case EWeaponGrade::Melee:
 	//	case EWeaponGrade::Melee:
 	//		break;
 	//	case EWeaponGrade::ThrowWeapon:

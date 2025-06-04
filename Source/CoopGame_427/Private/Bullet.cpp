@@ -7,9 +7,11 @@
 #include "Components/SphereComponent.h"
 #include "GameFramework/ProjectileMovementComponent.h"
 #include "Components/StaticMeshComponent.h"
+#include "Particles/ParticleSystemComponent.h"
 #include "Kismet/KismetSystemLibrary.h"
 #include "Kismet/GameplayStatics.h"
 #include "Kismet/KismetMathLibrary.h"
+#include "PhysicsEngine/RadialForceComponent.h"
 //#include "NiagaraFunctionLibrary.h"
 //#include "NiagaraSystem.h"
 #include "AircraftBase.h"
@@ -30,46 +32,9 @@ ABullet::ABullet()
     if (!RootComponent)
     {
         RootComponent = CreateDefaultSubobject<USceneComponent>(TEXT("ProjectileSceneComponent"));
+        RootComponent->SetRelativeRotation(FRotator(-90.f, 0.f, 0.f));
     }
     
-    if (!ProjectileMovementComponent)
-    {
-        // ???????????????????????
-        ProjectileMovementComponent = CreateDefaultSubobject<UProjectileMovementComponent>(TEXT("ProjectileMovementComponent"));
-        ProjectileMovementComponent->SetUpdatedComponent(RootComponent);
-        ProjectileMovementComponent->InitialSpeed = 5500.0f;
-        ProjectileMovementComponent->MaxSpeed = 6500.0f;
-        ProjectileMovementComponent->bRotationFollowsVelocity = true;
-        ProjectileMovementComponent->bShouldBounce = true;
-        ProjectileMovementComponent->bIsHomingProjectile = true;
-        ProjectileMovementComponent->Bounciness = 0.3f;
-        ProjectileMovementComponent->ProjectileGravityScale = 0.5f;
-    }
-
-    if (!ProjectileMeshComponent)
-    {
-        ProjectileMeshComponent = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("ProjectileMeshComponent"));
-        static ConstructorHelpers::FObjectFinder<UStaticMesh>Mesh(TEXT("StaticMesh'/Game/BluePrint/Weapon/Bullet/Sphere.Sphere'"));
-        if (Mesh.Succeeded())
-        {
-            ProjectileMeshComponent->SetStaticMesh(Mesh.Object);
-            //RootComponent = ProjectileMeshComponent;
-        }
-
-        /*static ConstructorHelpers::FObjectFinder<UMaterial>Material(TEXT("Material'/Game/BluePrint/Weapon/Bullet/M_BULLET.M_Bullet'"));
-        if (Material.Succeeded())
-        {
-            ProjectileMaterialInstance = UMaterialInstanceDynamic::Create(Material.Object, ProjectileMeshComponent);
-        }
-        ProjectileMeshComponent->SetMaterial(0, ProjectileMaterialInstance);*/
-        ProjectileMeshComponent->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
-        ProjectileMeshComponent->BodyInstance.SetCollisionProfileName(TEXT("Bullet"));
-        //ProjectileMeshComponent->SetRelativeScale3D(FVector(0.09f, 0.09f, 0.09f));
-        ProjectileMeshComponent->SetupAttachment(RootComponent);
-        //ProjectileMeshComponent->OnComponentHit.AddDynamic(this, &ABullet::OnCompHit);
-    }
-    
-   
     if (!CapsuleCollisionComponent)
     {
         // ????????м?????????
@@ -82,7 +47,10 @@ ABullet::ABullet()
         CapsuleCollisionComponent->GetBodyInstance()->bNotifyRigidBodyCollision = true;
         CapsuleCollisionComponent->BodyInstance.SetCollisionProfileName(TEXT("Bullet"));
         CapsuleCollisionComponent->SetupAttachment(RootComponent);
-        CapsuleCollisionComponent->SetRelativeRotation(FRotator(0, 0, 90));
+        // 让胶囊绕自身 Z 轴旋转 –90°，把“站立”的胶囊横过来
+        //CapsuleCollisionComponent->SetRelativeRotation(FRotator(0.f, 0.f, -90.f));
+
+       // CapsuleCollisionComponent->SetRelativeRotation(FRotator(0, 90, 90));
         // ????????????????????
         //CollisionComponent->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
         //CollisionComponent->SetCollisionObjectType(ECollisionChannel::ECC_WorldDynamic);
@@ -93,10 +61,63 @@ ABullet::ABullet()
         CapsuleCollisionComponent->SetGenerateOverlapEvents(true);
         CapsuleCollisionComponent->OnComponentBeginOverlap.AddDynamic(this, &ABullet::OnOtherBeginOverlap);
         CapsuleCollisionComponent->bReturnMaterialOnMove = true;
-        //RootComponent = CollisionComponent;
+        //RootComponent = CapsuleCollisionComponent;
     }
+   
+
+    if (!ProjectileMeshComponent)
+    {
+        ProjectileMeshComponent = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("ProjectileMeshComponent"));
+        static ConstructorHelpers::FObjectFinder<UStaticMesh>Mesh(TEXT("StaticMesh'/Game/BluePrint/Weapon/Bullet/Sphere.Sphere'"));
+        if (Mesh.Succeeded())
+        {
+            ProjectileMeshComponent->SetStaticMesh(Mesh.Object);
+            //ProjectileMeshComponent->SetSimulatePhysics(true);
+            //RootComponent = ProjectileMeshComponent;
+        }
+
+        /*static ConstructorHelpers::FObjectFinder<UMaterial>Material(TEXT("Material'/Game/BluePrint/Weapon/Bullet/M_BULLET.M_Bullet'"));
+        if (Material.Succeeded())
+        {
+            ProjectileMaterialInstance = UMaterialInstanceDynamic::Create(Material.Object, ProjectileMeshComponent);
+        }
+        ProjectileMeshComponent->SetMaterial(0, ProjectileMaterialInstance);*/
+        ProjectileMeshComponent->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
+        ProjectileMeshComponent->BodyInstance.SetCollisionProfileName(TEXT("Bullet"));
+        //ProjectileMeshComponent->SetRelativeScale3D(FVector(0.09f, 0.09f, 0.09f));
+        ProjectileMeshComponent->SetupAttachment(CapsuleCollisionComponent);
+        //ProjectileMeshComponent->SetRelativeRotation(FRotator(0, 90, 90));
+        //ProjectileMeshComponent->OnComponentHit.AddDynamic(this, &ABullet::OnCompHit);
+    }
+    if (!ProjectileMovementComponent)
+    {
+        // ???????????????????????
+        ProjectileMovementComponent = CreateDefaultSubobject<UProjectileMovementComponent>(TEXT("ProjectileMovementComponent"));
+        ProjectileMovementComponent->SetUpdatedComponent(CapsuleCollisionComponent);
+        ProjectileMovementComponent->InitialSpeed = 5500.0f;
+        ProjectileMovementComponent->MaxSpeed = 6500.0f;
+        //ProjectileMovementComponent->bRotationFollowsVelocity = true;
+        ProjectileMovementComponent->bShouldBounce = true;
+        ProjectileMovementComponent->bIsHomingProjectile = true;
+        ProjectileMovementComponent->Bounciness = 0.3f;
+        ProjectileMovementComponent->ProjectileGravityScale = 0.5f;
+        ProjectileMovementComponent->bSweepCollision=true;
+        
+    }
+    RadialForceComp = CreateDefaultSubobject<URadialForceComponent>(TEXT("RadialForceComp"));
+    RadialForceComp->SetupAttachment(RootComponent);
+    RadialForceComp->Radius = 500.0f; // 冲击波半径
+    RadialForceComp->ImpulseStrength = 2000.0f; // 冲击力强度
+    RadialForceComp->bImpulseVelChange = true; // 是否忽略物体质量，直接改变速度
+    RadialForceComp->bAutoActivate = false; // 是否自动激活
+    RadialForceComp->bIgnoreOwningActor = true; // 是否忽略自身
     // X????????????
     InitialLifeSpan = 1.0f;
+    if(!ParticleComponent)
+    {
+        ParticleComponent=CreateDefaultSubobject<UParticleSystemComponent>(TEXT("ParticleComponent"));
+        ParticleComponent->SetupAttachment(ProjectileMeshComponent);
+    }
 }
 
 
@@ -105,7 +126,7 @@ void ABullet::BeginPlay()
 {
 	Super::BeginPlay();
     CapsuleCollisionComponent->OnComponentHit.AddDynamic(this, &ABullet::OnCompHit);//Hit?????????????????л??Ч
-	
+    
 }
 
 // Called every frame
@@ -117,8 +138,8 @@ void ABullet::Tick(float DeltaTime)
 
 void ABullet::LaunchProjectile_Implementation()
 {
-
-	ProjectileMovementComponent->SetVelocityInLocalSpace(FVector::ForwardVector * Speed);	//??????????????????????????????
+    UKismetSystemLibrary::PrintString(this, GetActorForwardVector().ToString());
+	ProjectileMovementComponent->SetVelocityInLocalSpace(GetActorForwardVector() * Speed);	//??????????????????????????????
 	ProjectileMovementComponent->Activate();
 }
 
@@ -142,10 +163,11 @@ bool ABullet::FireInDirection_Validate(const FVector& ShootDirection)
 void ABullet::OnCompHit_Implementation(UPrimitiveComponent* HitComp, AActor* OtherActor, UPrimitiveComponent* OtherComp, FVector NormalImpulse, const FHitResult& Hit)
 {
     AWeaponServer* Weapon = Cast<AWeaponServer>(OtherActor);
-    UKismetSystemLibrary::PrintString(this, FString::Printf(TEXT("Bullet Hit!!!")));
-    if (OtherActor != this)
+    ASCharacter* Player = Cast<ASCharacter>(OtherActor);
+    //UKismetSystemLibrary::PrintString(this, FString::Printf(TEXT("Bullet Hit!!!")));
+    if (OtherActor != this && Player==nullptr)
     {
-        UKismetSystemLibrary::PrintString(this, FString::Printf(TEXT("Bullet Hit")));
+        //UKismetSystemLibrary::PrintString(this, FString::Printf(TEXT("Bullet Hit；%s"),*OtherActor->GetName()));
        
         FRotator XRotator = UKismetMathLibrary::MakeRotFromX(Hit.Normal);
         //BulletDecal(Hit.Location, XRotator);
@@ -162,13 +184,18 @@ void ABullet::OnCompHit_Implementation(UPrimitiveComponent* HitComp, AActor* Oth
                 Decal->SetFadeScreenSize(0);
             }
             
-        //UGameplayStatics::ApplyPointDamage(Hit.Actor.Get(), ServerPrimaryWeapon->BaseDamage, this->GetActorForwardVector(), Hit, (this->GetOwner())->GetInstigatorController(), this, UDamageType::StaticClass());
+        //UGameplayStatics::ApplyPointDamage(Hit.GetActor(), ServerPrimaryWeapon->BaseDamage, this->GetActorForwardVector(), Hit, (this->GetOwner())->GetInstigatorController(), this, UDamageType::StaticClass());
         }
         SpawnBulletFX(Hit.Location,XRotator);
-        OtherComp->AddImpulseAtLocation(ProjectileMovementComponent->Velocity * 50.0f, Hit.ImpactPoint);
+        if(OtherComp)
+        {
+            OtherComp->AddImpulseAtLocation(ProjectileMovementComponent->Velocity * 50.0f, Hit.ImpactPoint);
+        }
+        
+       
     }
 
-    //Destroy();
+    Destroy();
 }
 
 void ABullet::OnHit_Implementation(UPrimitiveComponent* HitComponent, AActor* OtherActor, UPrimitiveComponent* OtherComponent, FVector NormalImpulse, const FHitResult& Hit)
@@ -197,21 +224,24 @@ bool ABullet::OnHit_Validate(UPrimitiveComponent* HitComponent, AActor* OtherAct
 
 void ABullet::OnOtherBeginOverlap_Implementation(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult)
 {
-    UKismetSystemLibrary::PrintString(this, FString::Printf(TEXT("OVERLAP!!!!!")));
+    //UKismetSystemLibrary::PrintString(this, FString::Printf(TEXT("OVERLAP!!!!!")));
     ASCharacter* HitFPSCharacter = Cast<ASCharacter>(OtherActor);
     AVehicleBase* HitVehicle = Cast<AVehicleBase>(OtherActor);
     AAircraftBase* HitAircraft = Cast<AAircraftBase>(OtherActor);
-    if (OtherActor != this)
+    AAttackRobot* HitRobote = Cast<AAttackRobot>(OtherActor);
+    if (OtherActor != this && OtherActor != GetOwner())
     {
-        UKismetSystemLibrary::PrintString(this, FString::Printf(TEXT("OVERLAP!!!!!,%s"), *(OtherActor->GetName())));
-        SpawnBulletFX(OtherComp->GetComponentLocation(),UKismetMathLibrary::MakeRotFromX(SweepResult.Normal));
-        OtherComp->AddImpulseAtLocation(ProjectileMovementComponent->Velocity * 50.0f, SweepResult.ImpactPoint);
+        //UKismetSystemLibrary::PrintString(this, FString::Printf(TEXT("OVERLAP!!!!!,%s"), *(OtherComp->GetName())));
+        SpawnBulletFX(SweepResult.Location,UKismetMathLibrary::MakeRotFromX(SweepResult.Normal));
+        //OtherComp->SetSimulatePhysics(true);
+        //OtherComp->AddImpulseAtLocation(ProjectileMovementComponent->Velocity * 50.0f, SweepResult.Location);
+        RadialForceComp->FireImpulse();
         if (HitFPSCharacter)
         {
             
             //UKismetSystemLibrary::PrintString(this, FString::Printf(TEXT("OVERLAP!!!!!,%d"), (ProjectileMovementComponent->Velocity * 100.0f).Size()));
             //SweepResult.GetComponent()->AddImpulseAtLocation(ProjectileMovementComponent->Velocity * 100.0f, SweepResult.ImpactPoint, SweepResult.BoneName);
-            //OverlapActor->DamagePLayer(this->GetActorForwardVector(), SweepResult);
+            //HitFPSCharacter->DamagePLayer(HitFPSCharacter->GetCurrentServerWeapon(),this->GetActorForwardVector(), SweepResult);
             
         }
         else if(HitVehicle)
@@ -233,7 +263,7 @@ void ABullet::OnOtherBeginOverlap_Implementation(UPrimitiveComponent* Overlapped
                                                                 GetWorld(),
                                                                 Damage,
                                                                 0, 
-                                                                GetActorLocation(),
+                                                                SweepResult.Location,
                                                                 DamageRadius,
                                                                 DamageRadius*2,
                                                                 1, 
@@ -245,7 +275,46 @@ void ABullet::OnOtherBeginOverlap_Implementation(UPrimitiveComponent* Overlapped
                                                                 );
                 break;
             }
-            
+            Destroy();
+        }
+        else if (HitRobote)
+        {
+            UKismetSystemLibrary::PrintString(this, FString::Printf(TEXT("DamageRobote!!!!!")));
+            switch (BulletType)
+            {
+            case EBulletType::GunBullets:
+                {
+                    AWeaponServer* AttackerWeapon = Cast<AWeaponServer>(this->GetOwner());
+                    
+                    if (AttackerWeapon)
+                    {
+                        UGameplayStatics::ApplyPointDamage(SweepResult.GetActor(), AttackerWeapon->BaseDamage, this->GetActorForwardVector(), SweepResult,
+                        GetInstigator()->GetController(), GetOwner(), UDamageType::StaticClass());
+                    }
+                    break;
+                }
+            case EBulletType::ArtilleryShells:
+                UKismetSystemLibrary::PrintString(this, FString::Printf(TEXT("ArtilleryShellsRobote!!!!!")));
+                TArray<AActor*> IgnoredActors = TArray<AActor*>();
+                IgnoredActors.Add(this->GetOwner());
+                /*UGameplayStatics::ApplyRadialDamage(OtherActor, Damage, OtherComp->GetComponentLocation(), DamageRadius, UDamageType::StaticClass(),
+                    IgnoredActors,GetInstigator(), GetInstigatorController(), true);*/
+                UGameplayStatics::ApplyRadialDamageWithFalloff(
+                                                                GetWorld(),
+                                                                Damage,
+                                                                0, 
+                                                                SweepResult.Location,
+                                                                DamageRadius,
+                                                                DamageRadius*2,
+                                                                1, 
+                                                                nullptr, 
+                                                                IgnoredActors,
+                                                                this,
+                                                                this->GetInstigatorController(),
+                                                                ECC_Visibility
+                                                                );
+                break;
+            }
             Destroy();
         }
         
@@ -292,7 +361,7 @@ void ABullet::SpawnBulletFX_Implementation(FVector Location, FRotator Rotation)
     }
     else
     {
-        UKismetSystemLibrary::PrintString(this, FString::Printf(TEXT("ExplodeFlash is null")));
+        //UKismetSystemLibrary::PrintString(this, FString::Printf(TEXT("ExplodeFlash is null")));
     }
     //UNiagaraFunctionLibrary::SpawnSystemAtLocation(GetWorld(),);
 }

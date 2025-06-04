@@ -40,6 +40,7 @@ ASCharacter::ASCharacter()
 	bReplicates = true;
 
 #pragma region Component
+
 	SpringArmComp = CreateDefaultSubobject<USpringArmComponent>(TEXT("SpringArmComp"));
 	if (SpringArmComp) {
 		SpringArmComp->bUsePawnControlRotation = true;
@@ -64,16 +65,16 @@ ASCharacter::ASCharacter()
 
 	CapsuleArmComponent->SetCollisionEnabled(ECollisionEnabled::PhysicsOnly);
 	CapsuleArmComponent->SetCollisionObjectType(ECC_Pawn);
-	CapsuleArmComponent->BodyInstance.bUseCCD=true;
-
+	//CapsuleArmComponent->SetNotifyRigidBodyCollision(true);
+	//CapsuleArmComponent->BodyInstance.bUseCCD=true;
 
 	Mesh->SetOwnerNoSee(true);
 	Mesh->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
 	Mesh->SetCollisionObjectType(ECollisionChannel::ECC_Pawn);
-	Mesh->SetSimulatePhysics(true);
+	Mesh->SetSimulatePhysics(false);
 	Mesh->SetGenerateOverlapEvents(true);
 	Mesh->OnComponentBeginOverlap.AddDynamic(this, &ASCharacter::PickEquipment);
-
+	Mesh->SetNotifyRigidBodyCollision(true);
 	FPArmMesh->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 	FPArmMesh->SetCollisionObjectType(ECollisionChannel::ECC_Pawn);
 	FPArmMesh->bCastDynamicShadow = false;
@@ -162,11 +163,16 @@ void ASCharacter::CarryingVehiclesEvent_Implementation(const FInputActionValue& 
 		ActivateVehicleUI = !ActivateVehicleUI;
 		if(ActivateVehicleUI)
 		{
+			/*FInputModeGameAndUI Mode;
+			Mode.SetLockMouseToViewportBehavior(EMouseLockMode::DoNotLock);
+			FPSPlayerController->SetInputMode(Mode);*/
 			FPSPlayerController->SetInputMode(FInputModeGameAndUI());
+			FPSPlayerController->bShowMouseCursor = true;
 		}
 		else
 		{
 			FPSPlayerController->SetInputMode(FInputModeGameOnly());
+			FPSPlayerController->bShowMouseCursor = false;
 		}
 		UpdateClientVehicleUI(ActivateVehicleUI);
 		//FPSPlayerController->UpVehicles();
@@ -279,6 +285,7 @@ void ASCharacter::InputAimingReleased()
 
 void ASCharacter::SwitchPrimaryWeapon_Implementation()
 {
+	
 	AWeaponServer* ServerWeapon = GetCurrentServerWeapon();
 	if (ServerWeapon != nullptr)
 	{
@@ -316,7 +323,7 @@ void ASCharacter::SwitchPrimaryWeapon_Implementation()
 	if (ServerPrimaryWeapon != nullptr && ServerPrimaryWeapon->GetAttachParentSocketName() == TEXT("EquipWeapon"))
 	{
 
-		//UKismetSystemLibrary::PrintString(this, FString::Printf(TEXT("CuttingGun %s"),*ServerPrimaryWeapon->GetName()));
+		UKismetSystemLibrary::PrintString(this, FString::Printf(TEXT("CuttingGun %s"),*ServerPrimaryWeapon->GetName()));
 			//UKismetSystemLibrary::PrintString(this, FString::Printf(TEXT("CuttingGun")));
 		ServerPrimaryWeapon->DetachFromActor(FDetachmentTransformRules::KeepWorldTransform);
 		DestoryClientWeapon();
@@ -344,7 +351,7 @@ void ASCharacter::SwitchPrimaryWeapon_Implementation()
 		ReservePrimaryWeapon = ServerPrimaryWeapon;
 		ServerPrimaryWeapon = ServerWeapon;
 		//delete ServerWeapon;
-		//UKismetSystemLibrary::PrintString(this, FString::Printf(TEXT("ServerWeapon!!!!!!!!!!!!!!!!!! %s"), *ServerWeapon->GetName()));
+		UKismetSystemLibrary::PrintString(this, FString::Printf(TEXT("ServerWeapon!!!!!!!!!!!!!!!!!! %s"), *ServerWeapon->GetName()));
 		DestoryClientWeapon();
 		EquipPrimary(ServerPrimaryWeapon);
 		//ClientEquipFPArmsPrimary();
@@ -426,7 +433,8 @@ void ASCharacter::SwitchWeapon_Implementation()
 		{
 		case EWeaponGrade::Primary:
 		{
-			PlayServerSwitchPrimaryWeaponAnimMontage();
+				UKismetSystemLibrary::PrintString(this, FString::Printf(TEXT("SwitchPrimaryWeapon!!!!!")));
+				PlayServerSwitchPrimaryWeaponAnimMontage();
 			break;
 		}
 		case EWeaponGrade::Secondary:
@@ -910,13 +918,13 @@ bool ASCharacter::ClientUpdateHealthUI_Validate()
 void ASCharacter::OnRep_CurrentLife()
 {
 	ClientUpdateHealthUI();
-	UKismetSystemLibrary::PrintString(this, FString::Printf(TEXT("OnRep_CurrentLife!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!,%f"),Health));
+	//UKismetSystemLibrary::PrintString(this, FString::Printf(TEXT("OnRep_CurrentLife!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!,%f"),Health));
 	if (FPSPlayerController)
 	{
 		ASCharacter* PawnHealth = Cast<ASCharacter>(FPSPlayerController->GetPawn());
 		if (PawnHealth)
 		{
-			UKismetSystemLibrary::PrintString(this, FString::Printf(TEXT("health:%d"), PawnHealth->Health));
+			//UKismetSystemLibrary::PrintString(this, FString::Printf(TEXT("health:%d"), PawnHealth->Health));
 			if (PawnHealth->Health <= 0)
 			{
 				ServerDeath();
@@ -950,36 +958,56 @@ void ASCharacter::UpdateClientVehicleUI_Implementation(bool IsActivate)
 {
 	UpdateVehicleUIBP(IsActivate);
 }
-
+//当武器的mesh和碰撞体均有碰撞时该方法会触发两次，导致主副武器混乱
 void ASCharacter::PickEquipment_Implementation(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex,
                                                bool bFromSweep, const FHitResult& SweepResult)
 {
 	
 	AWeaponServer* ServerWeapon = Cast<AWeaponServer>(OtherActor);
+	AWeaponServer* CurrentServerWeapon = GetCurrentServerWeapon();
 	if (ServerWeapon && ServerWeapon->GetOwner() == nullptr)
 	{
-		LastWeapon = ServerWeapon;
-		ServerWeapon->EquipOrFall_Weapon(true);
-		WeaponList.Emplace(ServerWeapon);
 		if (ServerWeapon->GradeofWeapon == EWeaponGrade::Primary)
 		{
 			if (ServerPrimaryWeapon == nullptr)
 			{
+				LastWeapon = ServerWeapon;
+				ServerWeapon->EquipOrFall_Weapon(true);
+				WeaponList.Emplace(ServerWeapon);
+				ServerWeapon->SetOwner(this);
+				UKismetSystemLibrary::PrintString(this, FString::Printf(TEXT("EquipWeapon")));
 				ServerWeapon->K2_AttachToComponent(Mesh, TEXT("EquipWeapon"), EAttachmentRule::SnapToTarget,
 					EAttachmentRule::SnapToTarget,
 					EAttachmentRule::SnapToTarget,
 					true);
-				ServerWeapon->SetOwner(this);
+				
+				UKismetSystemLibrary::PrintString(this, FString::Printf(TEXT("weapon owner:%s"),*(ServerWeapon->GetOwner())->GetName()));
 				ServerPrimaryWeapon = ServerWeapon;
 			}
 			else if (ReservePrimaryWeapon == nullptr)
 			{
-				ServerWeapon->K2_AttachToComponent(Mesh, TEXT("EquipWeapon1"), EAttachmentRule::SnapToTarget,
-					EAttachmentRule::SnapToTarget,
-					EAttachmentRule::SnapToTarget,
-					true);
+				LastWeapon = ServerWeapon;
+				ServerWeapon->EquipOrFall_Weapon(true);
+				WeaponList.Emplace(ServerWeapon);
 				ServerWeapon->SetOwner(this);
-				UKismetSystemLibrary::PrintString(this, FString::Printf(TEXT("PickEquipment")));
+				if (CurrentServerWeapon==ServerPrimaryWeapon)
+				{
+					UKismetSystemLibrary::PrintString(this, FString::Printf(TEXT("EquipWeapon")));
+					ServerWeapon->K2_AttachToComponent(Mesh, TEXT("EquipWeapon"), EAttachmentRule::SnapToTarget,
+						EAttachmentRule::SnapToTarget,
+						EAttachmentRule::SnapToTarget,
+						true);	
+				}
+				else
+				{
+					UKismetSystemLibrary::PrintString(this, FString::Printf(TEXT("EquipWeapon1")));
+					ServerWeapon->K2_AttachToComponent(Mesh, TEXT("EquipWeapon1"), EAttachmentRule::SnapToTarget,
+						EAttachmentRule::SnapToTarget,
+						EAttachmentRule::SnapToTarget,
+						true);
+				}
+				
+				UKismetSystemLibrary::PrintString(this, FString::Printf(TEXT("weapon owner:%s"),*(ServerWeapon->GetOwner())->GetName()));
 				ReservePrimaryWeapon = ServerWeapon;
 			}
 			else
@@ -1661,8 +1689,8 @@ ABullet* ASCharacter::SpawnBullet(bool IsMoving)
 	FVector CameraLocation = CameraComp->GetComponentLocation();
 	FRotator CameraRotation = CameraComp->GetComponentRotation();
 
-	UClass* BulletBP = StaticLoadClass(ABullet::StaticClass(), nullptr, TEXT("Blueprint'/Game/BluePrint/Weapon/Bullet/BP_Bullet.BP_Bullet_C'"));
-	ABullet* Bullet = GetWorld()->SpawnActor<ABullet>(BulletBP, CameraLocation+200*CameraRotation.Vector(),
+	//UClass* BulletBP = StaticLoadClass(ABullet::StaticClass(), nullptr, TEXT("Blueprint'/Game/BluePrint/Weapon/Bullet/BP_Bullet.BP_Bullet_C'"));
+	ABullet* Bullet = GetWorld()->SpawnActor<ABullet>(ServerPrimaryWeapon->BulletBP, CameraLocation+200*CameraRotation.Vector(),
 		CameraRotation,
 		SpawnInfo
 		);
@@ -2034,28 +2062,28 @@ void ASCharacter::DamagePLayer(AWeaponServer* AttackWeapon, FVector const& HitFr
 		{
 			//head
 			HitDamage = AttackWeapon->BaseDamage * 4;
-			UKismetSystemLibrary::PrintString(this, FString::Printf(TEXT("HIt head")));
+			//UKismetSystemLibrary::PrintString(this, FString::Printf(TEXT("HIt head")));
 		}
 		break;
 		case EPhysicalSurface::SurfaceType2:
 		{
 			//body
 			HitDamage = AttackWeapon->BaseDamage * 1;
-			UKismetSystemLibrary::PrintString(this, FString::Printf(TEXT("HIt body")));
+			//UKismetSystemLibrary::PrintString(this, FString::Printf(TEXT("HIt body")));
 		}
 		break;
 		case EPhysicalSurface::SurfaceType3:
 		{
 			//arm
 			HitDamage = AttackWeapon->BaseDamage * 0.8;
-			UKismetSystemLibrary::PrintString(this, FString::Printf(TEXT("HIt arm")));
+			//UKismetSystemLibrary::PrintString(this, FString::Printf(TEXT("HIt arm")));
 		}
 		break;
 		case EPhysicalSurface::SurfaceType4:
 		{
 			//leg
 			HitDamage = AttackWeapon->BaseDamage * 0.7;
-			UKismetSystemLibrary::PrintString(this, FString::Printf(TEXT("HIt leg")));
+			//UKismetSystemLibrary::PrintString(this, FString::Printf(TEXT("HIt leg")));
 		}
 		break;
 		default:
@@ -2074,7 +2102,7 @@ void ASCharacter::OnHit_Implementation(AActor* DamagedActor, float Damage, ACont
 	{
 		OnRep_CurrentLife();
 	}
-	UKismetSystemLibrary::PrintString(this, FString::Printf(TEXT("Damage Actor: %s, Damage: %f, health: %f"),*GetName(),Damage,Health));
+	//UKismetSystemLibrary::PrintString(this, FString::Printf(TEXT("Damage Actor: %s, Damage: %f, health: %f"),*GetName(),Damage,Health));
 	//ClientUpdateHealthUI();
 	/*if (Health <= 0)
 	{
@@ -2152,6 +2180,7 @@ void ASCharacter::RadialDamage_Implementation(AActor* DamagedActor, float Damage
 	}*/
 }
 
+/*float ASCharacter::TakeDamage(float DamageAmount, FDamageEvent const& DamageEvent, AController* EventInstigator, AActor* DamageCauser)
 /*float ASCharacter::TakeDamage(float DamageAmount, FDamageEvent const& DamageEvent, AController* EventInstigator, AActor* DamageCauser)
 {
 	if (Health > DamageAmount) {
@@ -2352,20 +2381,20 @@ void ASCharacter::OnMeshBeginOverlapDamage_Implementation(UPrimitiveComponent* O
 		{
 			UKismetSystemLibrary::PrintString(this, FString::Printf(TEXT("Bullet is destory!!!!!!!!!!!!!!!!!!")));
 		}*/
-		UKismetSystemLibrary::PrintString(this, FString::Printf(TEXT("BulletOwner:%s"), *(Bullet->GetOwner())->GetName()));//actor如果被销毁，则无法获取Owner!!!!!
+		//UKismetSystemLibrary::PrintString(this, FString::Printf(TEXT("BulletOwner:%s"), *(Bullet->GetOwner())->GetName()));//actor如果被销毁，则无法获取Owner!!!!!
 		if (AttackerWeapon != nullptr)
 		{
-			UKismetSystemLibrary::PrintString(this, FString::Printf(TEXT("DamageByPlayer")));
+			//UKismetSystemLibrary::PrintString(this, FString::Printf(TEXT("DamageByPlayer")));
 			DamagePLayer(AttackerWeapon, Bullet->GetActorForwardVector(), SweepResult);
 		}
 		else if(AttackRobote != nullptr)
 		{
-			UKismetSystemLibrary::PrintString(this, FString::Printf(TEXT("DamageByRobote")));
+			//UKismetSystemLibrary::PrintString(this, FString::Printf(TEXT("DamageByRobote")));
 			AttackRobote->DamagePlayer(this, Bullet->GetActorForwardVector(), SweepResult);
 		}
 		else
 		{
-			UKismetSystemLibrary::PrintString(this, FString::Printf(TEXT("DamageByOther")));
+			//UKismetSystemLibrary::PrintString(this, FString::Printf(TEXT("DamageByOther")));
 			//AttackRobote->DamagePlayer(this, Bullet->GetActorForwardVector(), SweepResult);
 		}
 		Bullet->Destroy();
@@ -2399,7 +2428,7 @@ bool ASCharacter::OnMeshBeginOverlapDamage_Validate(UPrimitiveComponent* Overlap
 void ASCharacter::ServerDeath_Implementation()
 {
 	
-	
+	Mesh->SetSimulatePhysics(true);
 	FPSPlayerController = Cast<AMultiFPSPlayerController>(GetController());
 	if (FPSPlayerController)
 	{

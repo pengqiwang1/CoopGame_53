@@ -7,6 +7,7 @@
 #include "BehaviorTree/BehaviorTree.h"
 #include <BehaviorTree/BehaviorTreeComponent.h>
 #include <BehaviorTree/BlackboardComponent.h>
+#include "PhysicsEngine/RadialForceComponent.h"
 #include <Perception/AIPerceptionComponent.h>
 #include <Perception/AISenseConfig_Sight.h>
 #include <Components/SphereComponent.h>
@@ -55,6 +56,11 @@ AAttackRobot::AAttackRobot()
 	RadialForce = CreateDefaultSubobject<URadialForceComponent>(TEXT("RadiaForce"));
 	if (RadialForce)
 	{
+		RadialForce->Radius = 500.0f; // 冲击波半径
+		RadialForce->ImpulseStrength = 2000.0f; // 冲击力强度
+		RadialForce->bImpulseVelChange = true; // 是否忽略物体质量，直接改变速度
+		RadialForce->bAutoActivate = false; // 是否自动激活
+		RadialForce->bIgnoreOwningActor = true; // 是否忽略自身
 		RadialForce->SetupAttachment(CapsuleComponent);
 	}
 
@@ -130,19 +136,21 @@ void AAttackRobot::RobotFire(FVector FireDirection, FVector SpawnLocation, FRota
 	FActorSpawnParameters SpawnInfo;
 	SpawnInfo.Owner = this;
 	SpawnInfo.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
-	//SpawnRotation.Roll += 90;
-
-	UClass* BulletBP = StaticLoadClass(ABullet::StaticClass(), nullptr, TEXT("Blueprint'/Game/BluePrint/Robots/AssaultRobot/BP_AssaultRobotBullet.BP_AssaultRobotBullet_C'"));
+	FRotator FireRotation = SpawnRotation;
+	//SpawnRotation.Yaw += 90;
+	//SpawnRotation.Pitch+= 90;
+	//UClass* BulletBP = StaticLoadClass(ABullet::StaticClass(), nullptr, TEXT("Blueprint'/Game/BluePrint/Robots/AssaultRobot/BP_AssaultRobotBullet.BP_AssaultRobotBullet_C'"));
 	ABullet* Bullet = GetWorld()->SpawnActor<ABullet>(BulletBP, SpawnLocation + 100 * GetActorForwardVector(),
 		SpawnRotation,
 		SpawnInfo
 		);
 	if (Bullet)
 	{
+		//Bullet->SetActorRotation(FRotator(0,90,90));
 		//UKismetSystemLibrary::PrintString(this, FString::Printf(TEXT("fire!!!!!!!!!!!!!!!!!!!!!")));
 		Bullet->SetOwner(this);
 		Bullet->SetInstigator(this);
-		FVector LaunchDirection = SpawnRotation.Vector();
+		FVector LaunchDirection = FireRotation.Vector();
 		Bullet->FireInDirection(LaunchDirection);
 	}
 }
@@ -168,41 +176,42 @@ void AAttackRobot::DamagePlayer(ASCharacter* AttackPlayer, FVector const& HitFro
 			float HitDamage = 0;
 			if (HitPhysMaterial)
 			{
+				//UKismetSystemLibrary::PrintString(this, FString::Printf(TEXT("HitPhysMaterial")));
 				switch (HitPhysMaterial->SurfaceType)
 				{
 				case EPhysicalSurface::SurfaceType1:
 				{
 					//head
 					HitDamage = Aggressivity * 4;
-					UKismetSystemLibrary::PrintString(this, FString::Printf(TEXT("HIt head")));
+					//UKismetSystemLibrary::PrintString(this, FString::Printf(TEXT("HIt head:%f"),HitDamage));
 				}
 				break;
 				case EPhysicalSurface::SurfaceType2:
 				{
 					//body
 					HitDamage = Aggressivity * 1;
-					UKismetSystemLibrary::PrintString(this, FString::Printf(TEXT("HIt body")));
+					//UKismetSystemLibrary::PrintString(this, FString::Printf(TEXT("HIt body:%f"),HitDamage));
 				}
 				break;
 				case EPhysicalSurface::SurfaceType3:
 				{
 					//arm
 					HitDamage = Aggressivity * 0.8;
-					UKismetSystemLibrary::PrintString(this, FString::Printf(TEXT("HIt arm")));
+					//UKismetSystemLibrary::PrintString(this, FString::Printf(TEXT("HIt arm:%f"),HitDamage));
 				}
 				break;
 				case EPhysicalSurface::SurfaceType4:
 				{
 					//leg
 					HitDamage = Aggressivity * 0.7;
-					UKismetSystemLibrary::PrintString(this, FString::Printf(TEXT("HIt leg")));
+					//UKismetSystemLibrary::PrintString(this, FString::Printf(TEXT("HIt leg:%f"),HitDamage));
 				}
 				break;
 				default:
 					break;
 				}
 			}
-			UKismetSystemLibrary::PrintString(this, FString::Printf(TEXT("actor,%s"),*(HitInf.GetActor())->GetName()));
+			//UKismetSystemLibrary::PrintString(this, FString::Printf(TEXT("actor,%s"),*(HitInf.GetActor())->GetName()));
 			UGameplayStatics::ApplyPointDamage(AttackPlayer, HitDamage, HitFromDirection, HitInf,
 				GetController(), this, UDamageType::StaticClass());
 			
@@ -228,6 +237,7 @@ bool AAttackRobot::OnAttack_Validate(AActor* DamagedActor, float Damage, AContro
 void AAttackRobot::OnRadialDamage_Implementation(AActor* DamagedActor, float Damage, const UDamageType* DamageType,
 	FVector Origin, const FHitResult& HitInfo, AController* InstigatedBy, AActor* DamageCauser)
 {
+	UKismetSystemLibrary::PrintString(this, FString::Printf(TEXT("OnRadialDamage!!!!!!!!!!!!!!!!!!!!!!!!")));
 	Health = FMath::Min(Health - Damage, Health);
 }
 
@@ -271,7 +281,13 @@ void AAttackRobot::OnHit_Implementation(UPrimitiveComponent* HitComponent, AActo
 		RadialForce->FireImpulse();
 		UGameplayStatics::ApplyPointDamage(CollisionPlayer, CollisionAggressivity, Hit.Normal, Hit,
 			GetController(), this, UDamageType::StaticClass());
-		
+		TArray<AActor*> IgnoreActors;
+		IgnoreActors.Add(this);
+		/*UGameplayStatics::ApplyRadialDamageWithFalloff(this,CollisionAggressivity,
+			CollisionAggressivity/2,Hit.Location,CollisionAggressivityRadius,
+			CollisionAggressivityRadius*2,1.0f,UDamageType::StaticClass(),IgnoreActors,
+			this,
+	   GetInstigatorController(),ECC_Visibility);*/
 
 	}
 	else

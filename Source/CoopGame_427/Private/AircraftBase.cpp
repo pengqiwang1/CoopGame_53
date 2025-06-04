@@ -58,8 +58,8 @@ void AAircraftBase::BeginPlay()
 
 	Widget->SetOwningPlayer(UGameplayStatics::GetPlayerController(GWorld, 0));
 	
-	Widget->SetVisibility(ESlateVisibility::Hidden);
-	Widget->AddToViewport(0);
+	Widget->SetVisibility(ESlateVisibility::Collapsed);
+	Widget->AddToViewport(-101);
 	Super::BeginPlay();
     JSBSimMovementComponent->Commands.ParkingBrake=1;
 	for(int Engine=0; Engine<JSBSimMovementComponent->EngineCommands.Num();++Engine)
@@ -113,7 +113,7 @@ void AAircraftBase::UnActivateAircraft()
 	APlayerController* PlayerController = Cast<APlayerController>(GetController());
 	if (PlayerController)
 	{
-		Widget->SetVisibility(ESlateVisibility::Hidden);
+		Widget->SetVisibility(ESlateVisibility::Collapsed);
 		PlayerController->SetInputMode(FInputModeGameOnly());
 		PlayerController->bShowMouseCursor = false;
 	}
@@ -128,6 +128,14 @@ void AAircraftBase::GetOfAircraftTriggered_Implementation(const FInputActionValu
 	{
 		VehicleController->DownVehicles();
 	}
+}
+
+void AAircraftBase::MouseClickTriggered_Implementation(const FInputActionValue& Value)
+{
+}
+
+void AAircraftBase::SwitchViewModeTriggered_Implementation(const FInputActionValue& Value)
+{
 }
 
 // Called every frame
@@ -174,6 +182,11 @@ void AAircraftBase::SetupPlayerInputComponent(UInputComponent* PlayerInputCompon
 		EnhancedInputComponent->BindAction(SwitchCameraAction,ETriggerEvent::Triggered,this,&AAircraftBase::SwitchCameraTriggered);
 		//下飞机事件的绑定
 		EnhancedInputComponent->BindAction(GetOfAircraftAction,ETriggerEvent::Triggered,this,&AAircraftBase::GetOfAircraftTriggered);
+		//鼠标点击事件的绑定
+		EnhancedInputComponent->BindAction(MouseClickAction,ETriggerEvent::Triggered,this,&AAircraftBase::MouseClickTriggered);
+		//切换viewmode事件的绑定
+		EnhancedInputComponent->BindAction(SwitchViewModeAction,ETriggerEvent::Triggered,this,&AAircraftBase::SwitchViewModeTriggered);
+	
 	}
 
 	
@@ -294,6 +307,8 @@ void AAircraftBase::AileronTriggered_Implementation(const FInputActionValue& Val
 		JSBSimMovementComponent->Commands.Aileron += Aileron*0.1;
 	}*/
 	JSBSimMovementComponent->Commands.Aileron += Aileron*0.1;
+	//UKismetSystemLibrary::PrintString(this, FString::Printf(TEXT("LeftAileronPosition:%f"),JSBSimMovementComponent->AircraftState.LeftAileronPosition));
+	//UKismetSystemLibrary::PrintString(this, FString::Printf(TEXT("RightAileronPosition:%f"),JSBSimMovementComponent->AircraftState.RightAileronPosition));
 	JSBSimMovementComponent->Commands.Aileron = FMath::Clamp(JSBSimMovementComponent->Commands.Aileron,-1,1);
 	
 }
@@ -318,6 +333,7 @@ void AAircraftBase::CenterAileronsRudderTriggered_Implementation(const FInputAct
 {
 	JSBSimMovementComponent->Commands.Rudder=0;
 	JSBSimMovementComponent->Commands.Aileron=0;
+	JSBSimMovementComponent->Commands.Elevator=0;
 }
 
 void AAircraftBase::ParkingBrakeTriggered_Implementation(const FInputActionValue& Value)
@@ -364,9 +380,11 @@ void AAircraftBase::SwitchCameraTriggered_Implementation(const FInputActionValue
 		APlayerController* PlayerController = Cast<APlayerController>(GetController());
         if (PlayerController)
         {
-          Widget->SetVisibility(ESlateVisibility::Visible);
-          PlayerController->SetInputMode(FInputModeGameAndUI());
-          PlayerController->bShowMouseCursor = true;
+	        Widget->SetVisibility(ESlateVisibility::SelfHitTestInvisible);
+	        PlayerController->SetInputMode(FInputModeGameAndUI());
+        	PlayerController->bShowMouseCursor = true;
+	        PlayerController->bEnableClickEvents    = true;
+		    PlayerController->bEnableMouseOverEvents= true;
         }
 		
 	}
@@ -378,7 +396,7 @@ void AAircraftBase::SwitchCameraTriggered_Implementation(const FInputActionValue
 		APlayerController* PlayerController = Cast<APlayerController>(GetController());
 		if (PlayerController)
         {
-          Widget->SetVisibility(ESlateVisibility::Hidden);
+          Widget->SetVisibility(ESlateVisibility::Collapsed);
           PlayerController->SetInputMode(FInputModeGameOnly());
           PlayerController->bShowMouseCursor = false;
         }
